@@ -1,21 +1,28 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>NightZero Online</title>
-</head>
-<body>
+const socket = io();
 
-<h1>NightZero Online</h1>
+let currentRoom = null;
 
-<button onclick="createRoom()">Room erstellen</button>
-<input id="roomInput" placeholder="Room Code">
-<button onclick="joinRoom()">Beitreten</button>
-<button onclick="startGame()">Spiel starten</button>
+function createRoom(){
+    socket.emit("createRoom");
+}
 
-<div id="info"></div>
-<div id="game"></div>
+function joinRoom(){
+    const code = document.getElementById("roomInput").value;
+    socket.emit("joinRoom", code);
+    currentRoom = code;
+}
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="client.js"></script>
-</body>
-</html>
+socket.on("roomCreated", (code) => {
+    currentRoom = code;
+    document.getElementById("info").innerText =
+        "Room erstellt: " + code;
+});
+
+socket.on("playerCount", (count) => {
+    document.getElementById("info").innerText =
+        "Spieler im Room: " + count;
+});
+
+socket.on("errorMessage", (msg) => {
+    alert(msg);
+});
