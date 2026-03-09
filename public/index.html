@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>NightZero Online</title>
+</head>
+<body>
+
+<h1>NightZero Online</h1>
+
+<button onclick="createRoom()">Room erstellen</button>
+<input id="roomInput" placeholder="Room Code">
+<button onclick="joinRoom()">Beitreten</button>
+<button onclick="startGame()">Spiel starten</button>
+
+<div id="info"></div>
+<div id="game"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+</body>
+</html>
