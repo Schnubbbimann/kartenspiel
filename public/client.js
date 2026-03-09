@@ -1,4 +1,5 @@
 const socket = io();
+
 let currentRoom = null;
 
 function createRoom(){
@@ -7,24 +8,21 @@ function createRoom(){
 
 function joinRoom(){
     const code = document.getElementById("roomInput").value;
-    currentRoom = code;
     socket.emit("joinRoom", code);
-}
-
-function startGame(){
-    socket.emit("startGame", currentRoom);
+    currentRoom = code;
 }
 
 socket.on("roomCreated", (code) => {
     currentRoom = code;
-    document.getElementById("info").innerText = "Room: " + code;
+    document.getElementById("info").innerText =
+        "Room erstellt: " + code;
 });
 
-socket.on("updatePlayers", (count) => {
-    document.getElementById("info").innerText += " | Spieler: " + count;
+socket.on("playerCount", (count) => {
+    document.getElementById("info").innerText =
+        "Spieler im Room: " + count;
 });
 
-socket.on("gameState", (room) => {
-    document.getElementById("game").innerText =
-        JSON.stringify(room, null, 2);
+socket.on("errorMessage", (msg) => {
+    alert(msg);
 });
