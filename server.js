@@ -10,137 +10,62 @@ app.use(express.static("public"));
 
 let rooms = {};
 
-function createDeck() {
-    let deck = [];
-    for (let v = 0; v <= 13; v++) {
-        for (let i = 0; i < 4; i++) {
-            deck.push(v);
-        }
-    }
-    return deck.sort(() => Math.random() - 0.5);
-}
-
-function createRoom() {
-    const code = Math.random().toString(36).substring(2,7).toUpperCase();
-    rooms[code] = {
-        players: [],
-        deck: createDeck(),
-        discard: [],
-        hands: {},
-        turn: 0,
-        phase: "waiting",
-        drawnCard: null,
-        caller: null
-    };
-    return code;
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
 io.on("connection", (socket) => {
 
+    console.log("Spieler verbunden:", socket.id);
+
     socket.on("createRoom", () => {
-        const code = createRoom();
-        socket.join(code);
+        const code = generateRoomCode();
+
+        rooms[code] = {
+            players: []
+        };
+
         rooms[code].players.push(socket.id);
+        socket.join(code);
+
         socket.emit("roomCreated", code);
+
+        console.log("Room erstellt:", code);
     });
 
     socket.on("joinRoom", (code) => {
-        if (!rooms[code]) return;
-        socket.join(code);
-        rooms[code].players.push(socket.id);
-        io.to(code).emit("updatePlayers", rooms[code].players.length);
-    });
+        code = code.toUpperCase();
 
-    socket.on("startGame", (code) => {
-        const room = rooms[code];
-        if (!room) return;
-
-        room.players.forEach(id => {
-            room.hands[id] = [
-                room.deck.pop(),
-                room.deck.pop(),
-                room.deck.pop(),
-                room.deck.pop()
-            ];
-        });
-
-        room.discard.push(room.deck.pop());
-        room.phase = "draw";
-
-        io.to(code).emit("gameState", room);
-    });
-
-    socket.on("drawDeck", (code) => {
-        const room = rooms[code];
-        if (!room) return;
-        if (room.players[room.turn] !== socket.id) return;
-        if (room.phase !== "draw") return;
-
-        if (room.deck.length === 0) reshuffle(room);
-
-        room.drawnCard = room.deck.pop();
-        room.phase = "replace";
-
-        io.to(code).emit("gameState", room);
-    });
-
-    socket.on("replaceCard", ({code, index}) => {
-        const room = rooms[code];
-        if (!room) return;
-        if (room.players[room.turn] !== socket.id) return;
-        if (room.phase !== "replace") return;
-
-        const old = room.hands[socket.id][index];
-        room.hands[socket.id][index] = room.drawnCard;
-        room.discard.push(old);
-
-        room.drawnCard = null;
-        nextTurn(room);
-
-        io.to(code).emit("gameState", room);
-    });
-
-    socket.on("discardDrawn", (code) => {
-        const room = rooms[code];
-        if (!room) return;
-        if (room.players[room.turn] !== socket.id) return;
-        if (room.phase !== "replace") return;
-
-        const played = room.drawnCard;
-        room.discard.push(played);
-        room.drawnCard = null;
-
-        if (played >= 7 && played <= 12) {
-            room.phase = "ability";
-            room.abilityType = played;
-        } else {
-            nextTurn(room);
+        if (!rooms[code]) {
+            socket.emit("errorMessage", "Room existiert nicht");
+            return;
         }
 
-        io.to(code).emit("gameState", room);
+        rooms[code].players.push(socket.id);
+        socket.join(code);
+
+        io.to(code).emit("playerCount", rooms[code].players.length);
+
+        console.log("Spieler beigetreten:", code);
     });
 
-    socket.on("endAbility", (code) => {
-        const room = rooms[code];
-        if (!room) return;
-        nextTurn(room);
-        io.to(code).emit("gameState", room);
+    socket.on("disconnect", () => {
+        console.log("Spieler getrennt:", socket.id);
+
+        for (const code in rooms) {
+            rooms[code].players =
+                rooms[code].players.filter(id => id !== socket.id);
+
+            if (rooms[code].players.length === 0) {
+                delete rooms[code];
+            }
+        }
     });
 
 });
 
-function reshuffle(room) {
-    const top = room.discard.pop();
-    room.deck = room.discard.sort(() => Math.random() - 0.5);
-    room.discard = [top];
-}
+const PORT = process.env.PORT || 3000;
 
-function nextTurn(room) {
-    room.turn++;
-    if (room.turn >= room.players.length) room.turn = 0;
-    room.phase = "draw";
-}
-
-server.listen(3000, () => {
-    console.log("Server läuft auf Port 3000");
+server.listen(PORT, () => {
+    console.log("Server läuft auf Port", PORT);
 });
